@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#100d20">
+<title>ENTRE NOUS - MEREX</title>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+font-family:Arial,sans-serif;
+background:#100d20;color:#fff;min-height:100vh;
+background-image:
+radial-gradient(circle at 10% 5%,#51247755,transparent 35%),
+radial-gradient(circle at 90% 90%,#163e7055,transparent 35%);
+}
+button,input{font:inherit}
+button{cursor:pointer;border:0}
+.app{max-width:480px;margin:auto;padding:24px 20px 35px;min-height:100vh}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:42px}
+.logo{font-size:22px;font-weight:900;letter-spacing:1px}
+.logo span{color:#f18bc7}
+.status{font-size:11px;color:#bdb0d0;border:1px solid #49365e;padding:8px 11px;border-radius:30px}
+.hero{text-align:center;margin:35px 0 30px}
+.heart{font-size:46px;margin-bottom:17px;filter:drop-shadow(0 0 15px #e66bb8)}
+h1{font-size:34px;letter-spacing:-1px;margin-bottom:12px}
+.subtitle{font-size:14px;color:#b9aecb;line-height:1.7}
+.card{
+background:linear-gradient(145deg,#211a35,#19152a);
+border:1px solid #49345e;border-radius:22px;
+padding:22px;margin:16px 0;
+box-shadow:0 12px 35px #0003;
+}
+.card h2{font-size:18px;margin-bottom:9px}
+.muted{font-size:13px;color:#b9aecb;line-height:1.6}
+.field{width:100%;background:#100d20;border:1px solid #49365e;color:white;border-radius:13px;padding:16px;margin-top:13px;outline:none}
+.field:focus{border-color:#d879c2}
+.btn{
+width:100%;padding:16px;border-radius:14px;
+background:linear-gradient(100deg,#a94bc3,#e16da9);
+color:white;font-weight:bold;margin-top:13px;
+box-shadow:0 7px 20px #b64db444;
+}
+.btn.secondary{background:#302443;border:1px solid #59436d;box-shadow:none}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.players{display:flex;justify-content:space-around;gap:12px;margin:22px 0}
+.player{background:#29213d;border-radius:16px;padding:18px 10px;text-align:center;flex:1;overflow-wrap:anywhere}
+.avatar{font-size:30px;margin-bottom:9px}
+.player small{display:block;color:#b9aecb;margin-top:7px}
+.code{font-size:32px;letter-spacing:7px;color:#f39bd1;font-weight:bold;text-align:center;padding:15px}
+.question{font-size:22px;line-height:1.4;margin:20px 0}
+.option{
+display:block;width:100%;text-align:left;padding:16px;
+margin:10px 0;border-radius:13px;background:#29213d;
+border:1px solid #514064;color:white;
+}
+.option.selected{border-color:#ed80c6;background:#543052}
+.option:disabled{opacity:.8}
+.progress{height:5px;background:#352943;border-radius:10px;overflow:hidden;margin:18px 0}
+.progress div{height:100%;background:#e17bc2;width:0;transition:.3s}
+.result{padding:15px;background:#29213d;border-radius:14px;margin:10px 0;font-size:14px;line-height:1.6}
+.footer{text-align:center;color:#8b7b9d;font-size:10px;margin-top:55px;letter-spacing:.5px}
+.hidden{display:none!important}
+.notice{font-size:13px;color:#f4b9dd;text-align:center;margin:12px 0;line-height:1.6}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+<header class="top">
+<div class="logo">ENTRE <span>NOUS</span> ♥</div>
+<div class="status" id="connection">Connexion...</div>
+</header>
+
+<section id="home">
+<div class="hero">
+<div class="heart">💗</div>
+<h1>Deux personnes.<br>Une connexion.</h1>
+<p class="subtitle">Des questions, des défis, des surprises...<br>Et peut-être de belles découvertes.</p>
+</div>
+
+<div class="card">
+<h2>✨ Créer une partie</h2>
+<p class="muted">Lance une nouvelle aventure et invite une personne à te rejoindre.</p>
+<input class="field" id="nickname" maxlength="18" placeholder="Ton pseudonyme">
+<button class="btn" id="createBtn" onclick="createRoom()">Créer ma partie →</button>
+</div>
+
+<div class="card">
+<h2>🔑 Rejoindre une partie</h2>
+<p class="muted">Tu as reçu un code ? Entre-le ici pour retrouver l'autre joueur.</p>
+<input class="field" id="joinName" maxlength="18" placeholder="Ton pseudonyme">
+<input class="field" id="joinCode" maxlength="6" placeholder="CODE À 6 CARACTÈRES" style="text-transform:uppercase">
+<button class="btn secondary" id="joinBtn" onclick="joinRoom()">Rejoindre →</button>
+</div>
+<p class="notice" id="homeNotice"></p>
+</section>
+
+<section id="lobby" class="hidden">
+<div class="hero">
+<div class="heart">💞</div>
+<h1>Votre espace</h1>
+<p class="subtitle">La connexion commence ici.</p>
+</div>
+
+<div class="card">
+<p class="muted" style="text-align:center">CODE DE LA PARTIE</p>
+<div class="code" id="roomCode">------</div>
+<button class="btn secondary" onclick="copyCode()">Copier le code</button>
+
+<div class="players">
+<div class="player">
+<div class="avatar">🧑</div>
+<b id="playerOne">Joueur 1</b>
+<small>Créateur</small>
+</div>
+<div class="player">
+<div class="avatar">👤</div>
+<b id="playerTwo">En attente...</b>
+<small id="playerTwoStatus">Recherche du joueur</small>
+</div>
+</div>
+
+<p class="notice" id="lobbyNotice">Partage ton code pour inviter l'autre joueur.</p>
+<button class="btn" id="startBtn" onclick="startGame()" disabled>Commencer la partie</button>
+</div>
+<button class="btn secondary" onclick="leaveRoom()">Quitter</button>
+</section>
+
+<section id="game" class="hidden">
+<div class="top">
+<span class="muted" id="roundLabel">MANCHE 1</span>
+<span class="status" id="scoreLabel">0/10</span>
+</div>
+
+<div class="progress"><div id="progressBar"></div></div>
+
+<div class="card">
+<p class="muted" id="categoryLabel">COMPLICITÉ</p>
+<div class="question" id="questionText"></div>
+<div id="options"></div>
+<p class="notice" id="answerNotice"></p>
+
+<div id="reveal" class="hidden">
+<div class="result" id="answerResults"></div>
+<button class="btn" id="nextBtn" onclick="nextQuestion()">Question suivante →</button>
+</div>
+</div>
+<button class="btn secondary" onclick="leaveRoom()">Quitter la partie</button>
+</section>
+
+<section id="finish" class="hidden">
+<div class="hero">
+<div class="heart">🏆</div>
+<h1>Quelle aventure !</h1>
+<p class="subtitle">Vous avez partagé un moment ensemble.</p>
+</div>
+
+<div class="card">
+<h2 style="text-align:center">Votre résultat</h2>
+<div class="code" id="finalScore">0/10</div>
+<p class="muted" style="text-align:center" id="finalMessage"></p>
+<button class="btn" onclick="leaveRoom()">Retour à l'accueil</button>
+</div>
+</section>
+
+<footer class="footer">
+UNE EXPÉRIENCE IMAGINÉE AVEC SOIN<br><br>
+CREATED BY MEREX © 2026
+</footer>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+
+<script>
+/* CONFIGURATION FIREBASE */
+
+const firebaseConfig = {
+apiKey: "AIzaSyBiK2H2CnHlOFFl1SFfauamSUwahGvS3AY",
+authDomain: "entre-nous-merex.firebaseapp.com",
+databaseURL: "https://entre-nous-merex-default-rtdb.europe-west1.firebasedatabase.app",
+projectId: "entre-nous-merex",
+storageBucket: "entre-nous-merex.firebasestorage.app",
+messagingSenderId: "403764032249",
+appId: "1:403764032249:web:d13880680aeef0f5172828"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.database();
+
+let user = null;
+let roomId = null;
+let roomData = null;
+let roomListener = null;
+let busy = false;
+
+const questions = [
+{cat:"DÉCOUVERTE",q:"Quelle petite chose peut illuminer ta journée ?",o:["Un message inattendu","Une bonne musique","Un fou rire","Une belle surprise"]},
+{cat:"HUMOUR",q:"Si tu devais me donner un surnom amusant, lequel choisirais-tu ?",o:["Mon extraterrestre 👽","Monsieur/Madame mystère","Mon partenaire de bêtises","Mon rayon de soleil"]},
+{cat:"IMAGINATION",q:"Si nous avions une journée libre ensemble, que choisirais-tu ?",o:["Une sortie improvisée","Un bon repas","Une aventure inattendue","Une journée tranquille"]},
+{cat:"COMPLICITÉ",q:"Qu'est-ce qui rend une conversation vraiment agréable ?",o:["L'humour","L'écoute","La sincérité","La spontanéité"]},
+{cat:"ÉMOTION",q:"Qu'apprécies-tu le plus chez une personne ?",o:["Sa gentillesse","Son honnêteté","Son attention","Sa personnalité"]},
+{cat:"DÉFI",q:"Quel défi amusant accepterais-tu ?",o:["Raconter une anecdote drôle","Faire une imitation","Chanter quelques secondes","Inventer une histoire"]},
+{cat:"DÉCOUVERTE",q:"Quel serait ton week-end idéal ?",o:["Voyager","Rester au calme","Sortir et découvrir","Voir des proches"]},
+{cat:"IMAGINATION",q:"Si notre complicité était une couleur ?",o:["Rose","Bleu","Violet","Doré"]},
+{cat:"PROFONDEUR",q:"Qu'est-ce qui aide le plus à construire la confiance ?",o:["La communication","La patience","La cohérence","Le respect"]},
+{cat:"SURPRISE",q:"Choisis une mission pour l'autre joueur !",o:["Raconter un souvenir heureux","Dire trois qualités","Inventer une devinette","Envoyer un message gentil"]}
+];
+
+/* OUTILS */
+
+function show(id){
+["home","lobby","game","finish"].forEach(x=>{
+document.getElementById(x).classList.toggle("hidden",x!==id);
+});
+}
+
+function notice(id,msg){
+document.getElementById(id).textContent=msg;
+}
+
+function getName(id){
+return document.getElementById(id).value.trim().slice(0,18);
+}
+
+function makeCode(){
+const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+let code="";
+for(let i=0;i<6;i++){
+code+=chars[Math.floor(Math.random()*chars.length)];
+}
+return code;
+}
+
+function setBusy(value){
+busy=value;
+document.getElementById("createBtn").disabled=value;
+document.getElementById("joinBtn").disabled=value;
+}
+
+async function ensureAuth(){
+if(auth.currentUser){
+user=auth.currentUser;
+}else{
+const result=await auth.signInAnonymously();
+user=result.user;
+}
+document.getElementById("connection").textContent="Connecté";
+return user;
+}
+
+function getPlayers(){
+return [
+roomData?.slots?.["1"],
+roomData?.slots?.["2"]
+].filter(Boolean);
+}
+
+function isHost(){
+return roomData?.meta?.host===user?.uid;
+}
+
+function getMySlot(){
+if(!user||!roomData?.slots)return null;
+
+if(roomData.slots["1"]?.uid===user.uid)return "1";
+if(roomData.slots["2"]?.uid===user.uid)return "2";
+
+return null;
+}
+
+function getAnswers(index){
+return roomData?.answers?.[index]||{};
+}
+
+function calculateScore(){
+let score=0;
+
+for(let i=0;i<questions.length;i++){
+const answers=getAnswers(i);
+
+if(
+answers["1"]!==undefined &&
+answers["2"]!==undefined &&
+answers["1"]===answers["2"]
+){
+score++;
+}
+}
+
+return score;
+}
+
+function escapeHTML(s){
+return String(s).replace(/[&<>"']/g,c=>({
+"&":"&amp;",
+"<":"&lt;",
+">":"&gt;",
+'"':"&quot;",
+"'":"&#39;"
+}[c]));
+}
+
+/* CRÉATION D'UN SALON */
+
+async function createRoom(){
+if(busy)return;
+
+const name=getName("nickname");
+
+if(!name){
+notice("homeNotice","Choisis un pseudonyme.");
+return;
+}
+
+setBusy(true);
+
+try{
+await ensureAuth();
+
+let code=null;
+let created=false;
+
+for(let attempt=0;attempt<10;attempt++){
+const candidate=makeCode();
+
+const result=await db.ref("rooms/"+candidate+"/meta").transaction(
+current=>current===null
+?{
+host:user.uid,
+phase:"lobby",
+index:0,
+createdAt:Date.now()
+}
+:undefined
+);
+
+if(result.committed){
+code=candidate;
+created=true;
+break;
+}
+}
+
+if(!created){
+throw new Error("Impossible de générer un code disponible.");
+}
+
+try{
+await db.ref("rooms/"+code+"/slots/1").set({
+uid:user.uid,
+name:name
+});
+}catch(error){
+await db.ref("rooms/"+code).remove();
+throw error;
+}
+
+roomId=code;
+listenRoom();
+
+}catch(e){
+console.error(e);
+notice("homeNotice","Création impossible : "+e.message);
+}finally{
+setBusy(false);
+}
+}
+
+/* REJOINDRE UN SALON */
+
+async function joinRoom(){
+if(busy)return;
+
+const name=getName("joinName");
+const code=document.getElementById("joinCode").value.trim().toUpperCase();
+
+if(!name||code.length!==6){
+notice("homeNotice","Entre ton pseudonyme et le code à 6 caractères.");
+return;
+}
+
+setBusy(true);
+
+try{
+await ensureAuth();
+
+const base=db.ref("rooms/"+code);
+const metaSnap=await base.child("meta").get();
+
+if(!metaSnap.exists()){
+notice("homeNotice","Ce salon n'existe pas.");
+return;
+}
+
+if(metaSnap.val().phase!=="lobby"){
+notice("homeNotice","Cette partie a déjà commencé ou est terminée.");
+return;
+}
+
+const result=await base.child("slots/2").transaction(
+current=>{
+if(current===null){
+return {uid:user.uid,name:name};
+}
+return;
+}
+);
+
+if(!result.committed){
+notice("homeNotice","Ce salon est déjà complet.");
+return;
+}
+
+roomId=code;
+listenRoom();
+
+}catch(e){
+console.error(e);
+notice("homeNotice","Impossible de rejoindre : "+e.message);
+}finally{
+setBusy(false);
+}
+}
+
+/* ÉCOUTE FIREBASE */
+
+function listenRoom(){
+if(!roomId)return;
+
+if(roomListener){
+db.ref("rooms/"+roomId).off("value",roomListener);
+}
+
+const currentRoom=roomId;
+
+roomListener=snap=>{
+if(roomId!==currentRoom)return;
+
+if(!snap.exists()){
+notice("homeNotice","Ce salon n'existe plus.");
+cleanupLocal();
+show("home");
+return;
+}
+
+roomData=snap.val();
+
+if(roomData.meta?.phase==="closed"){
+notice("homeNotice","Cette partie a été fermée.");
+cleanupLocal();
+show("home");
+return;
+}
+
+renderRoom();
+};
+
+db.ref("rooms/"+currentRoom).on("value",roomListener,error=>{
+console.error(error);
+notice("homeNotice","Erreur de synchronisation : "+error.message);
+});
+}
+
+function cleanupLocal(){
+if(roomListener&&roomId){
+db.ref("rooms/"+roomId).off("value",roomListener);
+}
+
+roomListener=null;
+roomId=null;
+roomData=null;
+}
+
+/* AFFICHAGE DU SALON */
+
+function renderRoom(){
+if(!roomData?.meta)return;
+
+const players=getPlayers();
+
+document.getElementById("roomCode").textContent=roomId;
+
+document.getElementById("playerOne").textContent=
+players[0]?.name||"Joueur 1";
+
+document.getElementById("playerTwo").textContent=
+players[1]?.name||"En attente...";
+
+document.getElementById("playerTwoStatus").textContent=
+players.length===2?"Connecté":"Recherche du joueur";
+
+document.getElementById("startBtn").disabled=
+players.length!==2||!isHost();
+
+document.getElementById("startBtn").textContent=
+isHost()?"Commencer la partie":"En attente du créateur";
+
+if(roomData.meta.phase==="lobby"){
+show("lobby");
+}
+
+if(roomData.meta.phase==="game"){
+show("game");
+renderQuestion();
+}
+
+if(roomData.meta.phase==="finished"){
+show("finish");
+renderFinish();
+}
+}
+
+/* COPIER LE CODE */
+
+async function copyCode(){
+if(!roomId)return;
+
+try{
+await navigator.clipboard.writeText(roomId);
+notice("lobbyNotice","Code copié ! Partage-le avec l'autre joueur.");
+}catch(e){
+notice("lobbyNotice","Ton code est : "+roomId);
+}
+}
+
+/* DÉMARRER LA PARTIE */
+
+async function startGame(){
+if(!isHost()||getPlayers().length!==2)return;
+
+try{
+const metaRef=db.ref("rooms/"+roomId+"/meta");
+
+const result=await metaRef.transaction(current=>{
+if(
+!current||
+current.host!==user.uid||
+current.phase!=="lobby"
+)return;
+
+return {
+...current,
+phase:"game",
+index:0
+};
+});
+
+if(!result.committed){
+notice("lobbyNotice","Impossible de démarrer cette partie.");
+}
+
+}catch(e){
+notice("lobbyNotice","Erreur : "+e.message);
+}
+}
+
+/* AFFICHER LES QUESTIONS */
+
+function renderQuestion(){
+if(!roomData?.meta)return;
+
+const index=Number(roomData.meta.index);
+
+if(index>=questions.length)return;
+
+const q=questions[index];
+const answers=getAnswers(index);
+const both=
+answers["1"]!==undefined&&
+answers["2"]!==undefined;
+
+const mySlot=getMySlot();
+const mine=mySlot?answers[mySlot]:undefined;
+
+document.getElementById("roundLabel").textContent=
+"MANCHE "+(index+1)+" / "+questions.length;
+
+document.getElementById("progressBar").style.width=
+((index+1)/questions.length*100)+"%";
+
+document.getElementById("categoryLabel").textContent=q.cat;
+document.getElementById("questionText").textContent=q.q;
+
+document.getElementById("scoreLabel").textContent=
+calculateScore()+"/10";
+
+const container=document.getElementById("options");
+container.innerHTML="";
+
+q.o.forEach((option,i)=>{
+const b=document.createElement("button");
+
+b.className="option"+(mine===i?" selected":"");
+b.textContent=String.fromCharCode(65+i)+". "+option;
+
+b.disabled=
+mine!==undefined||
+!mySlot||
+both;
+
+b.onclick=()=>sendAnswer(i);
+
+container.appendChild(b);
+});
+
+document.getElementById("reveal").classList.toggle("hidden",!both);
+
+notice(
+"answerNotice",
+both
+?"Les deux réponses sont prêtes ! ❤️"
+:mine!==undefined
+?"Réponse enregistrée. En attente de l'autre joueur..."
+:"Choisis ta réponse."
+);
+
+if(both){
+const p1=roomData.slots["1"];
+const p2=roomData.slots["2"];
+
+const a=q.o[answers["1"]];
+const b=q.o[answers["2"]];
+
+document.getElementById("answerResults").innerHTML=
+"<b>"+escapeHTML(p1.name)+" :</b> "+escapeHTML(a)+
+"<br><br><b>"+escapeHTML(p2.name)+" :</b> "+escapeHTML(b)+
+"<br><br><b>"+
+(answers["1"]===answers["2"]
+?"Vous avez la même réponse ! 💗"
+:"Deux réponses différentes ! ✨")+
+"</b>";
+
+document.getElementById("nextBtn").disabled=!isHost();
+
+document.getElementById("nextBtn").textContent=
+index===questions.length-1
+?"Voir les résultats →"
+:"Question suivante →";
+}
+}
+
+/* ENREGISTRER UNE RÉPONSE */
+
+async function sendAnswer(i){
+if(!Number.isInteger(i)||i<0||i>3)return;
+
+const index=Number(roomData?.meta?.index);
+const slot=getMySlot();
+
+if(
+!slot||
+roomData.meta.phase!=="game"||
+getAnswers(index)[slot]!==undefined
+)return;
+
+try{
+const answerRef=db.ref(
+"rooms/"+roomId+"/answers/"+index+"/"+slot
+);
+
+const result=await answerRef.transaction(current=>{
+return current===null?i:undefined;
+});
+
+if(!result.committed){
+notice("answerNotice","Une réponse a déjà été enregistrée.");
+}
+
+}catch(e){
+notice("answerNotice","Réponse non enregistrée : "+e.message);
+}
+}
+
+/* QUESTION SUIVANTE */
+
+async function nextQuestion(){
+if(!isHost())return;
+
+const index=Number(roomData.meta.index);
+const answers=getAnswers(index);
+
+if(
+answers["1"]===undefined||
+answers["2"]===undefined
+){
+notice("answerNotice","Les deux joueurs doivent répondre.");
+return;
+}
+
+try{
+const metaRef=db.ref("rooms/"+roomId+"/meta");
+
+const result=await metaRef.transaction(current=>{
+if(
+!current||
+current.host!==user.uid||
+current.phase!=="game"||
+Number(current.index)!==index
+)return;
+
+if(index===questions.length-1){
+return {...current,phase:"finished",index:questions.length};
+}
+
+return {...current,index:index+1};
+});
+
+if(!result.committed){
+notice("answerNotice","La progression a déjà changé. Actualise la partie.");
+}
+
+}catch(e){
+notice("answerNotice","Impossible de continuer : "+e.message);
+}
+}
+
+/* RÉSULTATS */
+
+function renderFinish(){
+const score=calculateScore();
+
+document.getElementById("finalScore").textContent=
+score+"/10";
+
+let message="Votre complicité est unique ! ❤️";
+
+if(score>=8){
+message="Une magnifique connexion ! 💗";
+}else if(score>=5){
+message="Vous partagez déjà de beaux points communs ! 💞";
+}else{
+message="Vos différences sont aussi une belle occasion de vous découvrir ! ✨";
+}
+
+document.getElementById("finalMessage").textContent=message;
+}
+
+/* QUITTER */
+
+async function leaveRoom(){
+const oldRoom=roomId;
+const host=isHost();
+const phase=roomData?.meta?.phase;
+
+if(oldRoom){
+try{
+if(host&&phase!=="finished"){
+await db.ref("rooms/"+oldRoom+"/meta").update({
+phase:"closed"
+});
+}else if(!host&&phase==="lobby"){
+await db.ref("rooms/"+oldRoom+"/slots/2").remove();
+}
+}catch(e){
+console.error("Erreur en quittant :",e);
+}
+}
+
+cleanupLocal();
+show("home");
+notice("homeNotice","Tu es retourné à l'accueil.");
+}
+
+/* CODE DE CONNEXION */
+
+document.getElementById("joinCode").addEventListener("input",e=>{
+e.target.value=e.target.value.toUpperCase()
+.replace(/[^A-Z0-9]/g,"")
+.slice(0,6);
+});
+
+/* AUTHENTIFICATION */
+
+auth.onAuthStateChanged(current=>{
+user=current;
+
+document.getElementById("connection").textContent=
+current?"Connecté":"Non connecté";
+});
+
+ensureAuth().catch(e=>{
+console.error(e);
+document.getElementById("connection").textContent="Hors ligne";
+notice("homeNotice","Connexion Firebase impossible : "+e.message);
+});
+</script>
+
+</body>
+</html>
