@@ -10,25 +10,44 @@ let isHost = false;
 let latestRoom = null;
 let busy = false;
 
+const MAX_CODE_LENGTH = 6;
+const MAX_ANSWER_LENGTH = 240;
+
+const CATEGORY_LABELS = {
+  style: "DÉFIS DE STYLE",
+  fun: "DÉLIRES & IMAGINATION",
+  discover: "MIEUX SE DÉCOUVRIR",
+  challenge: "DÉFIS À RÉALISER",
+  mix: "SURPRISE",
+  all: "SURPRISE"
+};
+
 function toast(message) {
   const el = $("toast");
   if (!el) return;
+
   el.textContent = message;
   el.classList.add("show");
+
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => el.classList.remove("show"), 3000);
+  toast.timer = setTimeout(() => {
+    el.classList.remove("show");
+  }, 3000);
 }
 
 function showScreen(screenId) {
   document.querySelectorAll(".screen").forEach(screen => {
     screen.classList.remove("active");
   });
+
   $(screenId)?.classList.add("active");
 }
 
 function setBusy(value) {
   busy = value;
-  ["createBtn", "joinBtn", "startBtn", "submitAnswer", "nextRound"].forEach(id => {
+
+  ["createBtn", "joinBtn", "startBtn",
+   "submitAnswer", "nextRound"].forEach(id => {
     const button = $(id);
     if (button) button.disabled = value;
   });
@@ -42,22 +61,48 @@ async function ensureAuth() {
 
   const result = await auth.signInAnonymously();
   currentUser = result.user;
+
   return currentUser;
 }
 
 function getNickname() {
-  const name = $("nickname")?.value.trim();
-  if (!name) throw new Error("Entre un pseudonyme.");
-  if (name.length > 18) throw new Error("Maximum 18 caractères pour le pseudonyme.");
+  let name = $("nickname")?.value.trim();
+
+  // Les joueurs invités peuvent choisir leur pseudonyme
+  // directement lorsqu'ils rejoignent une partie.
+  if (!name) {
+    name = window.prompt("Choisis ton pseudonyme :");
+
+    if (name === null) {
+      throw new Error("Connexion annulée.");
+    }
+
+    name = name.trim();
+
+    if ($("nickname")) {
+      $("nickname").value = name;
+    }
+  }
+
+  if (!name) {
+    throw new Error("Entre un pseudonyme.");
+  }
+
+  if (name.length > 18) {
+    throw new Error("Maximum 18 caractères pour le pseudonyme.");
+  }
+
   return name;
 }
 
-function randomCode(length = 6) {
+function randomCode(length = MAX_CODE_LENGTH) {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
+
   for (let i = 0; i < length; i++) {
     code += chars[Math.floor(Math.random() * chars.length)];
   }
+
   return code;
 }
 
@@ -69,7 +114,17 @@ function stopRoomListener() {
   if (roomRef && roomListener) {
     roomRef.off("value", roomListener);
   }
+
   roomListener = null;
+}
+
+function resetRoom() {
+  stopRoomListener();
+
+  currentRoom = null;
+  roomRef = null;
+  latestRoom = null;
+  isHost = false;
 }
 
 function enterRoom(code) {
@@ -81,15 +136,13 @@ function enterRoom(code) {
   roomListener = snapshot => {
     if (!snapshot.exists()) {
       toast("Ce salon n'existe plus.");
-      stopRoomListener();
-      currentRoom = null;
-      latestRoom = null;
+      resetRoom();
       showScreen("homeScreen");
       return;
     }
 
     latestRoom = snapshot.val();
-    isHost = latestRoom.meta?.host === currentUser.uid;
+    isHost = latestRoom.meta?.host === currentUser?.uid;
 
     const phase = latestRoom.meta?.phase;
 
@@ -105,8 +158,14 @@ function enterRoom(code) {
     }
   };
 
-  roomRef.on("value", roomListener);
+  roomRef.on("value", roomListener, error => {
+    toast("Erreur de synchronisation : " + error.message);
+  });
 }
+
+// --------------------------------------------------
+// CRÉATION D'UNE PARTIE
+// --------------------------------------------------
 
 async function createRoom() {
   if (busy) return;
@@ -118,6 +177,7 @@ async function createRoom() {
 
     const name = getNickname();
     const maxPlayers = getMaxPlayers(selectedMode);
+
     let created = false;
     let code = "";
     let ref = null;
@@ -136,6 +196,7 @@ async function createRoom() {
             createdAt: firebase.database.ServerValue.TIMESTAMP
           };
         }
+
         return;
       });
 
@@ -150,12 +211,12 @@ async function createRoom() {
     }
 
     try {
-      // La première place est réservée à l'hôte.
       const seatResult = await ref.child("seats/1").transaction(current => {
         return current === null ? currentUser.uid : current;
       });
 
-      if (!seatResult.committed || seatResult.snapshot.val() !== currentUser.uid) {
+      if (!seatResult.committed ||
+          seatResult.snapshot.val() !== currentUser.uid) {
         throw new Error("Impossible de réserver la place de l'hôte.");
       }
 
@@ -166,7 +227,7 @@ async function createRoom() {
       });
 
       await ref.child("state").set({
-        category: "all",
+        category: "mix",
         index: 0,
         deck: [],
         answers: {}
@@ -187,6 +248,10 @@ async function createRoom() {
   }
 }
 
+// --------------------------------------------------
+// REJOINDRE UNE PARTIE
+// --------------------------------------------------
+
 async function joinRoom() {
   if (busy) return;
 
@@ -201,7 +266,7 @@ async function joinRoom() {
     const name = getNickname();
     const code = $("joinCode")?.value.trim().toUpperCase();
 
-    if (!code || code.length !== 6) {
+    if (!code || code.length !== MAX_CODE_LENGTH) {
       throw new Error("Entre un code de salon valide.");
     }
 
@@ -218,10 +283,15 @@ async function joinRoom() {
       throw new Error("Cette partie a déjà commencé ou est terminée.");
     }
 
+    const maxPlayers = Number(meta.maxPlayers);
+
+    if (![2, 12].includes(maxPlayers)) {
+      throw new Error("Configuration du salon invalide.");
+    }
+
     const playerRef = ref.child("players/" + currentUser.uid);
     const existingPlayer = await playerRef.once("value");
 
-    // Un joueur déjà inscrit peut revenir dans son salon.
     if (existingPlayer.exists()) {
       await playerRef.update({ name });
       toast("Reconnexion au salon...");
@@ -229,17 +299,13 @@ async function joinRoom() {
       return;
     }
 
-    const maxPlayers = Number(meta.maxPlayers);
-
-    if (![2, 12].includes(maxPlayers)) {
-      throw new Error("Configuration du salon invalide.");
-    }
-
     let reserved = false;
 
-    // Chaque place est réservée individuellement par transaction.
-    // Deux joueurs ne peuvent donc pas obtenir la même place.
-    for (let seat = 2; seat <= maxPlayers; seat++) {
+    // On vérifie toutes les places disponibles.
+    // Cela permet aussi de réutiliser la place 1
+    // si l'ancien hôte a quitté le salon.
+
+    for (let seat = 1; seat <= maxPlayers; seat++) {
       const seatRef = ref.child("seats/" + seat);
       const before = await seatRef.once("value");
 
@@ -251,10 +317,13 @@ async function joinRoom() {
         if (current === null || current === currentUser.uid) {
           return currentUser.uid;
         }
+
         return;
       });
 
-      if (result.committed && result.snapshot.val() === currentUser.uid) {
+      if (result.committed &&
+          result.snapshot.val() === currentUser.uid) {
+
         claimedSeatRef = seatRef;
         seatWasAlreadyOwned = before.val() === currentUser.uid;
         reserved = true;
@@ -263,6 +332,19 @@ async function joinRoom() {
     }
 
     if (!reserved) {
+      throw new Error("Ce salon est complet.");
+    }
+
+    // Nouvelle vérification avant l'inscription.
+    const latestMeta = await ref.child("meta").once("value");
+    const latestPlayers = await ref.child("players").once("value");
+
+    if (!latestMeta.exists() ||
+        latestMeta.val().phase !== "lobby") {
+      throw new Error("La partie vient de commencer.");
+    }
+
+    if (Object.keys(latestPlayers.val() || {}).length >= maxPlayers) {
       throw new Error("Ce salon est complet.");
     }
 
@@ -279,11 +361,17 @@ async function joinRoom() {
     if (claimedSeatRef && !seatWasAlreadyOwned) {
       await claimedSeatRef.remove().catch(() => {});
     }
+
     toast(error.message || "Impossible de rejoindre le salon.");
+
   } finally {
     setBusy(false);
   }
 }
+
+// --------------------------------------------------
+// AFFICHAGE DE LA SALLE D'ATTENTE
+// --------------------------------------------------
 
 function renderRoom() {
   if (!latestRoom) return;
@@ -292,21 +380,46 @@ function renderRoom() {
   const players = latestRoom.players || {};
 
   $("roomCode").textContent = currentRoom;
+
   $("roomModeLabel").textContent =
-    meta.mode === "duo" ? "Duo" : "Groupe";
+    meta.mode === "duo" ? "DUO" : "GROUPE";
 
   const playerList = Object.values(players);
+
   $("playerCount").textContent =
     playerList.length + " / " + meta.maxPlayers;
 
-  $("playersList").innerHTML = "";
+  const container = $("playersList");
+  container.innerHTML = "";
 
   playerList.forEach(player => {
     const item = document.createElement("div");
-    item.className = "player-item";
-    item.textContent =
-      player.name + (player.uid === meta.host ? " 👑" : "");
-    $("playersList").appendChild(item);
+    item.className = "player";
+
+    const avatar = document.createElement("div");
+    avatar.className = "avatar";
+    avatar.textContent = (player.name || "?").charAt(0).toUpperCase();
+
+    const info = document.createElement("div");
+
+    const name = document.createElement("strong");
+    name.textContent = player.name || "Joueur";
+
+    const status = document.createElement("small");
+    status.textContent =
+      player.uid === meta.host ? "Hôte de la partie" : "Participant";
+
+    info.append(name, status);
+    item.append(avatar, info);
+
+    if (player.uid === meta.host) {
+      const host = document.createElement("span");
+      host.className = "host-tag";
+      host.textContent = "HÔTE 👑";
+      item.appendChild(host);
+    }
+
+    container.appendChild(item);
   });
 
   const startButton = $("startBtn");
@@ -319,12 +432,16 @@ function renderRoom() {
 
   if (startHint) {
     startHint.textContent = isHost
-      ? (playerList.length < 2
-          ? "En attente d'un autre joueur..."
-          : "Tous les joueurs sont prêts ? Lance la partie !")
+      ? playerList.length < 2
+        ? "En attente d'un autre joueur..."
+        : "Tous les joueurs sont prêts ? Lance la partie !"
       : "En attente du lancement par l'hôte...";
   }
 }
+
+// --------------------------------------------------
+// COPIE DU CODE
+// --------------------------------------------------
 
 async function copyCode() {
   if (!currentRoom) return;
@@ -337,19 +454,36 @@ async function copyCode() {
   }
 }
 
+// --------------------------------------------------
+// LANCEMENT DE LA PARTIE
+// --------------------------------------------------
+
 async function startGame() {
   if (busy || !isHost || !roomRef || !latestRoom) return;
 
   setBusy(true);
 
   try {
-    const players = Object.values(latestRoom.players || {});
+    const roomSnapshot = await roomRef.once("value");
+
+    if (!roomSnapshot.exists()) {
+      throw new Error("Le salon n'existe plus.");
+    }
+
+    const room = roomSnapshot.val();
+
+    if (room.meta?.host !== currentUser.uid ||
+        room.meta?.phase !== "lobby") {
+      throw new Error("Tu ne peux plus lancer cette partie.");
+    }
+
+    const players = Object.values(room.players || {});
 
     if (players.length < 2) {
       throw new Error("Il faut au moins deux joueurs.");
     }
 
-    const category = $("gameCategory")?.value || "all";
+    const category = $("gameCategory")?.value || "mix";
     const deck = makeDeck(category);
 
     if (!deck || deck.length === 0) {
@@ -363,9 +497,21 @@ async function startGame() {
       answers: {}
     });
 
-    await roomRef.child("meta/phase").set("playing");
+    // Le changement de phase est contrôlé par transaction.
+    const phaseResult = await roomRef.child("meta/phase").transaction(current => {
+      if (current === "lobby") {
+        return "playing";
+      }
+
+      return;
+    });
+
+    if (!phaseResult.committed) {
+      throw new Error("Cette partie a déjà été lancée.");
+    }
 
     toast("La partie commence !");
+
   } catch (error) {
     toast(error.message || "Impossible de lancer la partie.");
   } finally {
@@ -373,8 +519,12 @@ async function startGame() {
   }
 }
 
+// --------------------------------------------------
+// AFFICHAGE DES DÉFIS
+// --------------------------------------------------
+
 function renderGame() {
-  if (!latestRoom) return;
+  if (!latestRoom || !currentUser) return;
 
   const state = latestRoom.state || {};
   const deck = state.deck || [];
@@ -387,35 +537,51 @@ function renderGame() {
   const answers = state.answers?.[index] || {};
 
   $("roundLabel").textContent =
-    "Manche " + (index + 1) + " / " + deck.length;
+    "MANCHE " + (index + 1) + " / " + deck.length;
 
   $("progressBar").style.width =
     ((index + 1) / deck.length * 100) + "%";
 
+  // Correspondance avec jeux.js :
+  // cat, icon, title, prompt, extra.
+
   $("categoryLabel").textContent =
-    challenge.category || state.category || "Défi";
+    CATEGORY_LABELS[challenge.cat] ||
+    CATEGORY_LABELS[state.category] ||
+    "DÉFI";
 
   $("playersInGame").textContent =
     Object.keys(players).length + " joueurs";
 
-  $("challengeSymbol").textContent = challenge.symbol || "🎯";
-  $("challengeTitle").textContent = challenge.title || "Défi";
-  $("challengePrompt").textContent = challenge.prompt || challenge.text || "";
-  $("challengeExtra").textContent = challenge.extra || "";
+  $("challengeSymbol").textContent =
+    challenge.icon || "🎯";
+
+  $("challengeTitle").textContent =
+    challenge.title || "Défi";
+
+  $("challengePrompt").textContent =
+    challenge.prompt || challenge.text || "";
+
+  $("challengeExtra").textContent =
+    challenge.extra || "";
 
   const answerInput = $("answerInput");
   const submitButton = $("submitAnswer");
   const answerStatus = $("answerStatus");
 
-  const alreadyAnswered = Boolean(answers[currentUser.uid]);
+  const alreadyAnswered =
+    Object.prototype.hasOwnProperty.call(answers, currentUser.uid);
 
   if (answerInput) {
     answerInput.disabled = alreadyAnswered;
-    if (alreadyAnswered) answerInput.value = "";
+
+    if (alreadyAnswered) {
+      answerInput.value = "";
+    }
   }
 
   if (submitButton) {
-    submitButton.disabled = alreadyAnswered;
+    submitButton.disabled = alreadyAnswered || busy;
   }
 
   if (answerStatus) {
@@ -437,27 +603,38 @@ function renderGame() {
     const name = document.createElement("strong");
     name.textContent = player.name + " : ";
 
-    const content = document.createElement("span");
+    const content = document.createElement("p");
     content.textContent = answer;
 
     item.append(name, content);
     answersList.appendChild(item);
   });
 
+  const playerIds = Object.keys(players);
+
   const allAnswered =
-    Object.keys(players).length > 0 &&
-    Object.keys(players).every(uid => answers[uid]);
+    playerIds.length > 0 &&
+    playerIds.every(uid =>
+      Object.prototype.hasOwnProperty.call(answers, uid)
+    );
 
   const nextButton = $("nextRound");
 
   if (nextButton) {
-    nextButton.style.display = isHost && allAnswered ? "block" : "none";
-    nextButton.disabled = !isHost || !allAnswered;
+    nextButton.style.display =
+      isHost && allAnswered ? "block" : "none";
+
+    nextButton.disabled =
+      !isHost || !allAnswered || busy;
   }
 }
 
+// --------------------------------------------------
+// ENVOI D'UNE RÉPONSE
+// --------------------------------------------------
+
 async function submitAnswer() {
-  if (busy || !roomRef || !latestRoom) return;
+  if (busy || !roomRef || !latestRoom || !currentUser) return;
 
   const answer = $("answerInput")?.value.trim();
 
@@ -466,7 +643,7 @@ async function submitAnswer() {
     return;
   }
 
-  if (answer.length > 240) {
+  if (answer.length > MAX_ANSWER_LENGTH) {
     toast("Ta réponse ne doit pas dépasser 240 caractères.");
     return;
   }
@@ -477,12 +654,19 @@ async function submitAnswer() {
     const state = latestRoom.state || {};
     const index = Number(state.index || 0);
 
+    if (latestRoom.meta?.phase !== "playing") {
+      throw new Error("Cette partie n'est plus en cours.");
+    }
+
     const answerRef = roomRef.child(
       "state/answers/" + index + "/" + currentUser.uid
     );
 
     const result = await answerRef.transaction(current => {
-      if (current === null) return answer;
+      if (current === null) {
+        return answer;
+      }
+
       return;
     });
 
@@ -492,6 +676,7 @@ async function submitAnswer() {
 
     $("answerInput").value = "";
     toast("Réponse envoyée !");
+
   } catch (error) {
     toast(error.message || "Impossible d'envoyer ta réponse.");
   } finally {
@@ -499,39 +684,71 @@ async function submitAnswer() {
   }
 }
 
+// --------------------------------------------------
+// PASSAGE À LA MANCHE SUIVANTE
+// --------------------------------------------------
+
 async function nextRound() {
   if (busy || !isHost || !roomRef || !latestRoom) return;
 
   setBusy(true);
 
   try {
-    const state = latestRoom.state || {};
-    const deck = state.deck || [];
-    const index = Number(state.index || 0);
-    const players = latestRoom.players || {};
-    const answers = state.answers?.[index] || {};
+    const result = await roomRef.child("state").transaction(state => {
+      if (!state || !state.deck) return;
 
-    const allAnswered =
-      Object.keys(players).length > 0 &&
-      Object.keys(players).every(uid => answers[uid]);
+      const deck = state.deck;
+      const index = Number(state.index || 0);
+      const answers = state.answers?.[index] || {};
 
-    if (!allAnswered) {
+      // Vérification de la présence des joueurs.
+      const players = latestRoom.players || {};
+      const playerIds = Object.keys(players);
+
+      const allAnswered =
+        playerIds.length > 0 &&
+        playerIds.every(uid =>
+          Object.prototype.hasOwnProperty.call(answers, uid)
+        );
+
+      if (!allAnswered) return;
+
+      if (index + 1 >= deck.length) {
+        state.index = deck.length;
+      } else {
+        state.index = index + 1;
+      }
+
+      return state;
+    });
+
+    if (!result.committed) {
       throw new Error("Tous les joueurs doivent répondre avant de continuer.");
     }
 
-    if (index + 1 >= deck.length) {
-      await roomRef.child("meta/phase").set("finished");
+    const state = result.snapshot.val();
+
+    if (state.index >= state.deck.length) {
+      await roomRef.child("meta/phase").transaction(current => {
+        return current === "playing" ? "finished" : undefined;
+      });
+
+      toast("Partie terminée !");
       return;
     }
 
-    await roomRef.child("state/index").set(index + 1);
     toast("Manche suivante !");
+
   } catch (error) {
     toast(error.message || "Impossible de passer à la manche suivante.");
   } finally {
     setBusy(false);
   }
 }
+
+// --------------------------------------------------
+// RÉSULTATS
+// --------------------------------------------------
 
 function renderResults() {
   if (!latestRoom) return;
@@ -540,29 +757,60 @@ function renderResults() {
   const state = latestRoom.state || {};
   const deck = state.deck || [];
 
-  $("finalSummary").innerHTML = "";
+  const container = $("finalSummary");
+  container.innerHTML = "";
 
   const title = document.createElement("h3");
   title.textContent = "La partie est terminée !";
-  $("finalSummary").appendChild(title);
+  container.appendChild(title);
 
   const count = document.createElement("p");
   count.textContent =
-    Object.keys(players).length + " joueurs ont participé à " +
-    deck.length + " manches.";
-  $("finalSummary").appendChild(count);
+    Object.keys(players).length +
+    " joueurs ont participé à " +
+    deck.length +
+    " manches.";
+
+  container.appendChild(count);
+
+  deck.forEach((challenge, index) => {
+    const answers = state.answers?.[index] || {};
+
+    const item = document.createElement("div");
+    item.className = "answer-item";
+
+    const heading = document.createElement("strong");
+    heading.textContent =
+      (challenge.icon || "🎯") + " " + challenge.title;
+
+    item.appendChild(heading);
+
+    Object.entries(answers).forEach(([uid, answer]) => {
+      const player = players[uid];
+      if (!player) return;
+
+      const response = document.createElement("p");
+      response.textContent = player.name + " : " + answer;
+      item.appendChild(response);
+    });
+
+    container.appendChild(item);
+  });
 }
+
+// --------------------------------------------------
+// QUITTER UNE PARTIE
+// --------------------------------------------------
 
 async function leaveRoom() {
   if (!currentRoom || !currentUser || !roomRef) {
-    stopRoomListener();
-    currentRoom = null;
-    latestRoom = null;
+    resetRoom();
     showScreen("homeScreen");
     return;
   }
 
   if (busy) return;
+
   setBusy(true);
 
   try {
@@ -585,74 +833,6 @@ async function leaveRoom() {
 
     if (meta.host === currentUser.uid) {
       if (remainingPlayers.length > 0) {
-        // Le nouvel hôte doit être choisi parmi les joueurs présents.
         const nextHost = remainingPlayers[0].uid;
-        await roomRef.child("meta/host").set(nextHost);
-      } else {
-        // Le dernier joueur quitte : le salon est supprimé.
-        await roomRef.remove();
-        toast("Salon fermé.");
-        return;
-      }
-    }
 
-    await roomRef.child("players/" + currentUser.uid).remove();
-
-    if (mySeat) {
-      await roomRef.child("seats/" + mySeat).remove();
-    }
-
-    toast("Tu as quitté le salon.");
-
-  } catch (error) {
-    toast(error.message || "Erreur lors du départ.");
-  } finally {
-    stopRoomListener();
-    currentRoom = null;
-    latestRoom = null;
-    roomRef = null;
-    isHost = false;
-    setBusy(false);
-    showScreen("homeScreen");
-  }
-}
-
-// Choix du mode de jeu.
-$("chooseDuo")?.addEventListener("click", () => {
-  selectedMode = "duo";
-  $("chooseDuo").classList.add("selected");
-  $("chooseGroup")?.classList.remove("selected");
-  showScreen("setupScreen");
-});
-
-$("chooseGroup")?.addEventListener("click", () => {
-  selectedMode = "group";
-  $("chooseGroup").classList.add("selected");
-  $("chooseDuo")?.classList.remove("selected");
-  showScreen("setupScreen");
-});
-
-// Actions principales.
-$("createBtn")?.addEventListener("click", createRoom);
-$("joinBtn")?.addEventListener("click", joinRoom);
-$("copyCode")?.addEventListener("click", copyCode);
-$("startBtn")?.addEventListener("click", startGame);
-$("submitAnswer")?.addEventListener("click", submitAnswer);
-$("nextRound")?.addEventListener("click", nextRound);
-
-$("lobbyBack")?.addEventListener("click", leaveRoom);
-$("leaveGame")?.addEventListener("click", leaveRoom);
-$("backHome")?.addEventListener("click", leaveRoom);
-
-// Connexion Firebase.
-auth.onAuthStateChanged(user => {
-  currentUser = user;
-  const connection = $("connection");
-
-  if (connection) {
-    connection.textContent = user
-      ? "Connecté"
-      : "Connexion en cours...";
-  }
-});
-  
+        const transfer = await roomRef.child("
