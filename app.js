@@ -798,6 +798,7 @@ function renderResults() {
   });
 }
 
+
 // --------------------------------------------------
 // QUITTER UNE PARTIE
 // --------------------------------------------------
@@ -817,7 +818,9 @@ async function leaveRoom() {
     const snapshot = await roomRef.once("value");
 
     if (!snapshot.exists()) {
-      throw new Error("Le salon n'existe plus.");
+      resetRoom();
+      showScreen("homeScreen");
+      return;
     }
 
     const room = snapshot.val();
@@ -831,8 +834,40 @@ async function leaveRoom() {
     const mySeat = Object.entries(seats)
       .find(([, uid]) => uid === currentUser.uid)?.[0];
 
-    if (meta.host === currentUser.uid) {
-      if (remainingPlayers.length > 0) {
+    // Si le joueur est le dernier, supprimer le salon.
+    if (remainingPlayers.length === 0) {
+      if (meta.host !== currentUser.uid) {
+        throw new Error("Impossible de fermer ce salon.");
+      }
+
+      await roomRef.remove();
+
+      toast("Salon fermé.");
+    } else {
+      // Transférer l'hébergement si l'hôte quitte.
+      if (meta.host === currentUser.uid) {
         const nextHost = remainingPlayers[0].uid;
 
-        const transfer = await roomRef.child("
+        await roomRef.child("meta/host").set(nextHost);
+      }
+
+      // Supprimer le joueur de la partie.
+      await roomRef.child("players/" + currentUser.uid).remove();
+
+      // Libérer sa place.
+      if (mySeat) {
+        await roomRef.child("seats/" + mySeat).remove();
+      }
+
+      toast("Tu as quitté le salon.");
+    }
+
+    resetRoom();
+    showScreen("homeScreen");
+
+  } catch (error) {
+    toast(error.message || "Impossible de quitter le salon.");
+  } finally {
+    setBusy(false);
+  }
+}
