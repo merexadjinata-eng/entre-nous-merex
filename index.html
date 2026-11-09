@@ -1,9 +1,11 @@
+
 <!doctype html>
 <html lang="fr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#100b24">
+  <meta name="description" content="ENTRE NOUS : des défis, des surprises et des moments inoubliables à deux ou en groupe.">
   <title>ENTRE NOUS — Joue, découvre, partage</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -11,7 +13,8 @@
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="Entre Nous accueil">
-        <span class="brand-mark">✦</span><span>ENTRE <b>NOUS</b></span>
+        <span class="brand-mark">✦</span>
+        <span>ENTRE <b>NOUS</b></span>
       </a>
       <span class="live-pill"><i></i> MULTIJOUEUR</span>
     </header>
@@ -22,33 +25,54 @@
           <div class="eyebrow">LE JEU QUI VOUS RAPPROCHE</div>
           <h1>Vos moments.<br><span>Vos délires.</span><br>Votre univers.</h1>
           <p>Des défis, des surprises et des fous rires. À deux ou en groupe, chaque partie écrit sa propre histoire.</p>
-          <div class="hero-orbit"><span>✦</span><b>ENTRE<br>NOUS</b><span>✧</span></div>
+          <div class="hero-orbit">
+            <span>✦</span><b>ENTRE<br>NOUS</b><span>✧</span>
+          </div>
         </div>
+
         <div class="panel">
           <h2>Choisis ton expérience</h2>
           <div class="mode-grid">
             <button class="mode-card" id="chooseDuo">
-              <span class="mode-icon">♡</span><b>Mode Duo</b><small>Une partie à deux</small><span class="arrow">↗</span>
+              <span class="mode-icon">♡</span>
+              <b>Mode Duo</b>
+              <small>Une partie à deux</small>
+              <span class="arrow">↗</span>
             </button>
             <button class="mode-card" id="chooseGroup">
-              <span class="mode-icon">✺</span><b>Mode Groupe</b><small>Jusqu'à 12 joueurs</small><span class="arrow">↗</span>
+              <span class="mode-icon">✺</span>
+              <b>Mode Groupe</b>
+              <small>Jusqu'à 12 joueurs</small>
+              <span class="arrow">↗</span>
             </button>
           </div>
+
           <div class="join-row">
-            <input id="joinCode" maxlength="6" placeholder="CODE DE LA PARTIE" autocomplete="off">
+            <input id="joinCode" maxlength="6"
+              placeholder="CODE DE LA PARTIE" autocomplete="off">
             <button class="btn btn-light" id="joinBtn">Rejoindre</button>
           </div>
           <p class="hint">Tu as reçu un code ? Entre-le ici pour retrouver tes amis.</p>
         </div>
-        <div class="footer-note">Conçu pour jouer ensemble, même à distance. <span>♥</span></div>
+
+        <div class="footer-note">
+          Conçu pour jouer ensemble, même à distance. <span>♥</span>
+        </div>
       </section>
 
       <section id="setupScreen" class="screen">
         <button class="back-link" data-go="homeScreen">← Retour</button>
-        <div class="section-heading"><div class="eyebrow">NOUVELLE PARTIE</div><h1 id="setupTitle">Mode Duo</h1><p id="setupDescription">Invitez une personne et commencez votre aventure.</p></div>
+        <div class="section-heading">
+          <div class="eyebrow">NOUVELLE PARTIE</div>
+          <h1 id="setupTitle">Mode Duo</h1>
+          <p id="setupDescription">Invitez une personne et commencez votre aventure.</p>
+        </div>
+
         <div class="panel">
           <label for="nickname">Ton pseudonyme</label>
-          <input id="nickname" maxlength="18" placeholder="Ex. Mérêx" autocomplete="nickname">
+          <input id="nickname" maxlength="18"
+            placeholder="Ex. Mérêx" autocomplete="nickname">
+
           <label for="gameCategory">Première ambiance</label>
           <select id="gameCategory">
             <option value="mix">Surprise — un peu de tout</option>
@@ -57,25 +81,46 @@
             <option value="discover">Mieux se découvrir</option>
             <option value="challenge">Défis à réaliser</option>
           </select>
-          <button class="btn btn-primary full" id="createBtn">Créer ma partie <span>↗</span></button>
-          <p class="hint">Un code privé sera créé pour cette partie. Partage-le uniquement avec les personnes que tu souhaites inviter.</p>
+
+          <button class="btn btn-primary full" id="createBtn">
+            Créer ma partie <span>↗</span>
+          </button>
+          <p class="hint">
+            Un code privé sera créé pour cette partie.
+            Partage-le uniquement avec les personnes que tu souhaites inviter.
+          </p>
         </div>
       </section>
 
       <section id="lobbyScreen" class="screen">
         <button class="back-link" id="lobbyBack">← Quitter</button>
-        <div class="section-heading"><div class="eyebrow">SALLE D'ATTENTE</div><h1>Votre équipe<br><span>est presque prête.</span></h1><p>Partage le code et attends que tout le monde arrive.</p></div>
+
+        <div class="section-heading">
+          <div class="eyebrow">SALLE D'ATTENTE</div>
+          <h1>Votre équipe<br><span>est presque prête.</span></h1>
+          <p>Partage le code et attends que tout le monde arrive.</p>
+        </div>
+
         <div class="invite-card">
           <small>CODE D'INVITATION · <span id="roomModeLabel">DUO</span></small>
           <div class="invite-code" id="roomCode">------</div>
           <button class="copy-btn" id="copyCode">Copier le code</button>
         </div>
+
         <div class="panel">
-          <div class="panel-title"><h2>Participants</h2><span id="playerCount">0/2</span></div>
+          <div class="panel-title">
+            <h2>Participants</h2>
+            <span id="playerCount">0/2</span>
+          </div>
           <div id="playersList" class="players-list"></div>
           <div id="lobbyNotice" class="notice">En attente des autres joueurs…</div>
-          <button class="btn btn-primary full" id="startBtn" disabled>Lancer la partie <span>→</span></button>
-          <p class="hint" id="startHint">Le créateur pourra lancer la partie quand au moins 2 personnes seront présentes.</p>
+
+          <button class="btn btn-primary full" id="startBtn" disabled>
+            Lancer la partie <span>→</span>
+          </button>
+          <p class="hint" id="startHint">
+            Le créateur pourra lancer la partie quand au moins 2 personnes seront présentes.
+          </p>
         </div>
       </section>
 
@@ -84,8 +129,16 @@
           <button class="back-link" id="leaveGame">✕ Quitter</button>
           <div class="round-chip" id="roundLabel">MANCHE 1</div>
         </div>
-        <div class="progress-track"><div id="progressBar"></div></div>
-        <div class="game-meta"><span id="categoryLabel">SURPRISE</span><span id="playersInGame">0 joueurs</span></div>
+
+        <div class="progress-track">
+          <div id="progressBar"></div>
+        </div>
+
+        <div class="game-meta">
+          <span id="categoryLabel">SURPRISE</span>
+          <span id="playersInGame">0 joueurs</span>
+        </div>
+
         <div class="challenge-card">
           <div class="challenge-symbol" id="challengeSymbol">✦</div>
           <div class="eyebrow">À VOUS DE JOUER</div>
@@ -93,29 +146,64 @@
           <p id="challengePrompt"></p>
           <div id="challengeExtra" class="challenge-extra"></div>
         </div>
+
         <div class="panel answer-panel">
           <label for="answerInput" id="answerLabel">Ta réponse</label>
-          <textarea id="answerInput" rows="3" maxlength="240" placeholder="Écris ta réponse ici…"></textarea>
-          <button class="btn btn-primary full" id="submitAnswer">Envoyer ma réponse</button>
-          <div id="answerStatus" class="notice">Les réponses apparaîtront ici.</div>
+          <textarea id="answerInput" rows="3" maxlength="240"
+            placeholder="Écris ta réponse ici…"></textarea>
+
+          <button class="btn btn-primary full" id="submitAnswer">
+            Envoyer ma réponse
+          </button>
+
+          <div id="answerStatus" class="notice">
+            Les réponses apparaîtront ici.
+          </div>
+
           <div id="answersList" class="answers-list"></div>
-          <button class="btn btn-light full hidden" id="nextRound">Passer à la manche suivante →</button>
+
+          <button class="btn btn-light full hidden" id="nextRound">
+            Passer à la manche suivante →
+          </button>
         </div>
       </section>
 
       <section id="resultsScreen" class="screen">
-        <div class="results-hero"><div class="eyebrow">FIN DE PARTIE</div><div class="trophy">✧</div><h1>Quel beau<br><span>moment partagé !</span></h1><p>Merci d'avoir joué ensemble. Les meilleurs souvenirs sont ceux qu'on crée à plusieurs.</p></div>
-        <div class="panel"><h2>Les moments de la partie</h2><div id="finalSummary" class="answers-list"></div><button class="btn btn-primary full" id="backHome">Retour à l'accueil</button></div>
+        <div class="results-hero">
+          <div class="eyebrow">FIN DE PARTIE</div>
+          <div class="trophy">✧</div>
+          <h1>Quel beau<br><span>moment partagé !</span></h1>
+          <p>
+            Merci d'avoir joué ensemble.
+            Les meilleurs souvenirs sont ceux qu'on crée à plusieurs.
+          </p>
+        </div>
+
+        <div class="panel">
+          <h2>Les moments de la partie</h2>
+          <div id="finalSummary" class="answers-list"></div>
+          <button class="btn btn-primary full" id="backHome">
+            Retour à l'accueil
+          </button>
+        </div>
       </section>
     </main>
+
     <div id="toast" class="toast" role="status"></div>
   </div>
 
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+
+  <!-- Configuration Firebase -->
   <script src="firebase.js"></script>
-  <script src="games.js"></script>
+
+  <!-- Bibliothèque des défis -->
+  <script src="jeux.js"></script>
+
+  <!-- Moteur principal du jeu -->
   <script src="app.js"></script>
 </body>
 </html>
